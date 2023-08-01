@@ -99,7 +99,7 @@ def apply_transform(img):
 
 
 
-def generate_mask(input_image, net, palette, device = 'cpu'):
+def generate_mask(input_image, net, palette,filename, device = 'cpu'):
 
     #img = Image.open(input_image).convert('RGB')
     img = input_image
@@ -128,19 +128,25 @@ def generate_mask(input_image, net, palette, device = 'cpu'):
         if np.any(output_arr == cls):
             classes_to_save.append(cls)
 
+    combined_mask = None
     # Save alpha masks
     for cls in classes_to_save:
         alpha_mask = (output_arr == cls).astype(np.uint8) * 255
         alpha_mask = alpha_mask[0]  # Selecting the first channel to make it 2D
-        alpha_mask_img = Image.fromarray(alpha_mask, mode='L')
-        alpha_mask_img = alpha_mask_img.resize(img_size, Image.BICUBIC)
-        alpha_mask_img.save(os.path.join(alpha_out_dir, f'{cls}.png'))
+        if combined_mask is None:
+            combined_mask = alpha_mask
+        else:
+            combined_mask = np.logical_or(combined_mask,alpha_mask).astype(np.uint8) * 255
+    combined_mask = Image.fromarray(combined_mask, mode='L')
+    combined_mask = combined_mask.resize(img_size, Image.BICUBIC)
+        
+    combined_mask.save(os.path.join(alpha_out_dir, f'{filename.split(".")[0]}_{cls}.png'))
 
     # Save final cloth segmentations
     cloth_seg = Image.fromarray(output_arr[0].astype(np.uint8), mode='P')
     cloth_seg.putpalette(palette)
     cloth_seg = cloth_seg.resize(img_size, Image.BICUBIC)
-    cloth_seg.save(os.path.join(cloth_seg_out_dir, 'final_seg.png'))
+    cloth_seg.save(os.path.join(cloth_seg_out_dir, filename.split('.')[0] + '_final_seg.png'))
     return cloth_seg
 
 
@@ -173,10 +179,11 @@ def main(args):
     model = load_seg_model(args.checkpoint_path, device=device)
 
     palette = get_palette(4)
-
-    img = Image.open(args.image).convert('RGB')
-
-    cloth_seg = generate_mask(img, net=model, palette=palette, device=device)
+    
+    for file in os.listdir(args.image):
+        file_path = os.path.join(args.image, file)
+        img = Image.open(file_path).convert('RGB')
+        cloth_seg = generate_mask(img, net=model, palette=palette, filename=file,device=device)
 
 
 

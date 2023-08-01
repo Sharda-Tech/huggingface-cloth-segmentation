@@ -140,7 +140,7 @@ def generate_mask(input_image, net, palette,filename, device = 'cpu'):
     combined_mask = Image.fromarray(combined_mask, mode='L')
     combined_mask = combined_mask.resize(img_size, Image.BICUBIC)
         
-    combined_mask.save(os.path.join(alpha_out_dir, f'{filename.split(".")[0]}_{cls}.png'))
+    combined_mask.save(os.path.join(alpha_out_dir, f'{filename.split(".")[0]}.png'))
 
     # Save final cloth segmentations
     cloth_seg = Image.fromarray(output_arr[0].astype(np.uint8), mode='P')
@@ -150,20 +150,8 @@ def generate_mask(input_image, net, palette,filename, device = 'cpu'):
     return cloth_seg
 
 
-
-def check_or_download_model(file_path):
-    if not os.path.exists(file_path):
-        os.makedirs(os.path.dirname(file_path), exist_ok=True)
-        url = "https://drive.google.com/uc?id=11xTBALOeUkyuaK3l60CpkYHLTmv7k3dY"
-        gdown.download(url, file_path, quiet=False)
-        print("Model downloaded successfully.")
-    else:
-        print("Model already exists.")
-
-
 def load_seg_model(checkpoint_path, device='cpu'):
     net = U2NET(in_ch=3, out_ch=4)
-    check_or_download_model(checkpoint_path)
     net = load_checkpoint(net, checkpoint_path)
     net = net.to(device)
     net = net.eval()
@@ -181,6 +169,7 @@ def main(args):
     palette = get_palette(4)
     
     for file in os.listdir(args.image):
+      if 'image' in file and  '_' not in file:
         file_path = os.path.join(args.image, file)
         img = Image.open(file_path).convert('RGB')
         cloth_seg = generate_mask(img, net=model, palette=palette, filename=file,device=device)
